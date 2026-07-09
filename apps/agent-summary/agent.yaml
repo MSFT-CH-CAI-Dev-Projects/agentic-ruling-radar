@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/ContainerAgent.yaml
+#
+# Ruling Radar — Bundesgerichtsurteile bilingual house-style summary agent.
+# Hosted agent definition for Microsoft Foundry. The platform builds
+# the container from the sibling Dockerfile, injects the reserved
+# FOUNDRY_* env vars (project endpoint, agent name/version, App
+# Insights), and routes invocations traffic to PORT (8088) /invocations.
+#
+# AOAI endpoint + chat deployment + api-version are user-defined env
+# vars sourced from azd (`azd env get-values`) — the existing Bicep
+# already exports them. Identity inside the container is a managed
+# identity granted "Cognitive Services User" on the Foundry resource
+# (see infra/main.bicep).
+kind: hosted
+name: agent-summary
+protocols:
+  - protocol: invocations
+    version: 1.0.0
+resources:
+  cpu: '0.5'
+  memory: '1.0Gi'
+environment_variables:
+  - name: AZURE_OPENAI_ENDPOINT
+    value: ${AZURE_OPENAI_ENDPOINT}
+  - name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
+    value: ${AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}
+  - name: AZURE_OPENAI_API_VERSION
+    value: preview

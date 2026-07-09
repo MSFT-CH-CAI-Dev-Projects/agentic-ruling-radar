@@ -1,0 +1,37 @@
+[project]
+name = "agent-triage"
+version = "0.1.0"
+description = "Ruling Radar — Bundesgerichtsurteile batch triage agent (MAF + Foundry invocations)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework>=0.1.0",
+    "agent-framework-foundry-hosting>=0.1.0",
+    "azure-identity>=1.19",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "python-dotenv>=1.0",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+]
+
+[project.scripts]
+agent-triage-dev = "agent_triage.dev:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_triage"]
+
+[tool.uv]
+prerelease = "allow"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]

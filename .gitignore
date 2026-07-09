@@ -1,0 +1,37 @@
+# --- Secrets & local environment (NEVER commit real values) -------------
+# Real, filled-in values live in local .env files (gitignored). The
+# committed *.env.example files are placeholder templates only.
+.env
+.env.local
+.env.*.local
+.azure/
+
+# --- Local-only house-style exemplars -----------------------------------
+# Example summaries stay on your machine and are never pushed. Only the
+# drop-zone README.md (and the package __init__.py) are tracked.
+apps/agent-summary/src/agent_summary/data/exemplars/*.md
+!apps/agent-summary/src/agent_summary/data/exemplars/README.md
+
+# --- Python -------------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Node / Next.js -----------------------------------------------------
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# --- Brand assets (optional, drop-in; not part of the repo) -------------
+apps/web/public/brand/
+apps/web/public/fonts/
+
+# --- OS / editor --------------------------------------------------------
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/

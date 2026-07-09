@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #00b8cf;
+  --brand-yellow: #fce300;
+  --brand-red: #eb0064;
+  --brand-warning: #febf00;
+  --brand-orange: #ff8200;
+  --brand-success: #208048;
+  --brand-danger: #cc3333;
+  --brand-lime: #c1e200;
+  --brand-white: #ffffff;
+  --brand-light: #f2f2f2;
+  --brand-gray: #8c8c8c;
+  --brand-gray-dark: #b3b3b3;
+  --brand-black: #1a1a1a;
+}
+
+html,
+body {
+  background: var(--brand-white);
+  color: var(--brand-black);
+  font-family:
+    "Helvetica Neue LT W04 55 Roman", "Inter", "Helvetica Neue", Helvetica,
+    Arial, system-ui, sans-serif;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}

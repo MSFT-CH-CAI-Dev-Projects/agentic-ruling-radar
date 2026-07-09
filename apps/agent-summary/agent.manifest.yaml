@@ -1,0 +1,33 @@
+name: agent-summary
+description: >
+  Ruling Radar — produces a bilingual (DE/FR) house-style summary draft
+  for one Swiss Federal Supreme Court ruling (Bundesgerichtsurteil).
+  Input is a single bger.ch URL, ideally with the fulltext prefetched
+  by the BFF and passed inline. No triage — the BFF (or upstream
+  agent-triage) has already decided this ruling deserves a summary.
+  Built on Microsoft Agent Framework, hosted on Foundry via the
+  invocations protocol.
+metadata:
+  tags:
+    - Agent Framework
+    - Bundesgericht
+    - Summary
+    - Bilingual
+    - Invocations Protocol
+template:
+  name: agent-summary
+  kind: hosted
+  protocols:
+    - protocol: invocations
+      version: 1.0.0
+  environment_variables:
+    - name: AZURE_OPENAI_ENDPOINT
+      value: "{{AZURE_OPENAI_ENDPOINT}}"
+    - name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
+      value: "{{AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}}"
+    - name: AZURE_OPENAI_API_VERSION
+      value: preview
+resources:
+  - kind: model
+    id: gpt-4.1-mini
+    name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME

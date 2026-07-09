@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "_comment": "Example parameters file. Copy to main.parameters.json and tweak. Most values are set via azd env vars (azd env set ...) at runtime — see main.parameters.json which references them as ${VAR=default}. Case 1 Phase 1a/b only needs environmentName + the Swiss-region pin; SharePoint/Graph values land in Phase 2.",
+  "parameters": {
+    "environmentName": { "value": "ruling-radar-dev" },
+    "location":        { "value": "switzerlandnorth" },
+    "foundryLocation": { "value": "switzerlandnorth" },
+    "allowNonSwissRegion": { "value": false },
+    "deployWebApp": { "value": false },
+    "graphAppClientId":     { "value": "" },
+    "graphAppClientSecret": { "value": "" },
+    "sharepointSiteUrl":    { "value": "" },
+    "sharepointDriveId":    { "value": "" }
+  }
+}

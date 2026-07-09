@@ -1,0 +1,32 @@
+name: agent-triage
+description: >
+  Ruling Radar — screens new Swiss Federal Supreme Court rulings
+  (Bundesgerichtsurteile) for insurance relevance using a 2-stage rubric
+  (deterministic Sachgebiet filter + LLM relevance questions Q1–Q4).
+  Emits one TriageDecision per scanned ruling. The BFF then fans out
+  the relevant ones to the agent-summary hosted agent for the actual
+  bilingual summaries. Built on Microsoft Agent Framework, hosted on
+  Foundry via the invocations protocol.
+metadata:
+  tags:
+    - Agent Framework
+    - Bundesgericht
+    - Triage
+    - Invocations Protocol
+template:
+  name: agent-triage
+  kind: hosted
+  protocols:
+    - protocol: invocations
+      version: 1.0.0
+  environment_variables:
+    - name: AZURE_OPENAI_ENDPOINT
+      value: "{{AZURE_OPENAI_ENDPOINT}}"
+    - name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
+      value: "{{AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}}"
+    - name: AZURE_OPENAI_API_VERSION
+      value: preview
+resources:
+  - kind: model
+    id: gpt-4.1-mini
+    name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME

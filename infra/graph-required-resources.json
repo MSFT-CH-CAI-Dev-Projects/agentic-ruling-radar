@@ -1,0 +1,23 @@
+{
+  "_comment": "Microsoft Graph permission IDs required by the demo. Reference for the operator running the `az ad app create` steps in quickstart §1.3.",
+  "resourceAppId": "00000003-0000-0000-c000-000000000000",
+  "resourceAppName": "Microsoft Graph",
+  "permissions": {
+    "application": [
+      {
+        "id": "883ea226-0bf2-4a8f-9f9d-92c9162a727d",
+        "type": "Role",
+        "value": "Sites.Selected",
+        "description": "Per-site write access for Case 1 (SharePoint draft upload). Must be granted with a site-scoped write permission on the target site (Graph API: POST /sites/{site-id}/permissions)."
+      }
+    ],
+    "delegated": [
+      { "id": "863451e7-0667-486c-a5d6-d135439485f0", "type": "Scope", "value": "Files.ReadWrite",  "description": "Operator's OneDrive write access for Case 2." },
+      { "id": "e383f46e-2787-4529-855e-0e479a3ffac0", "type": "Scope", "value": "Mail.Send",        "description": "Send notification mail from operator's mailbox." },
+      { "id": "37f7f235-527c-4136-accd-4a02d197296e", "type": "Scope", "value": "openid",           "description": "Required for sign-in." },
+      { "id": "14dad69e-099b-42c9-810b-d002981feec1", "type": "Scope", "value": "profile",          "description": "User profile claims." },
+      { "id": "64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0", "type": "Scope", "value": "email",            "description": "Email claim." },
+      { "id": "7427e0e9-2fba-42fe-b0c0-848c9e6a8182", "type": "Scope", "value": "offline_access",   "description": "Allow refresh token for OBO flow." }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: ruling-radar
+metadata:
+  template: ruling-radar@0.2.0
+# `apps/api` has been dropped in the Case 1 refactor (branch 002-case1-refined).
+# The new architecture has the BFF (apps/web/app/api/rulings/route.ts) talk
+# directly to two Microsoft Foundry hosted agents (apps/agent-triage and
+# apps/agent-summary), each registered via the `foundry` CLI / Foundry API
+# after its image is pushed to ACR — *not* via azd.
+# Only the Next.js UI is an azd-managed Container App, and even that is opt-in
+# (deployWebApp=false by default; run `pnpm dev` locally for the demo).
+services:
+  web:
+    project: ./apps/web
+    language: ts
+    host: containerapp
+    docker:
+      path: Dockerfile
+      remoteBuild: true
+hooks:
+  postprovision:
+    shell: sh
+    run: ./hooks/postprovision.sh
+    continueOnError: false
+    interactive: true
+  predown:
+    shell: sh
+    run: ./hooks/predown.sh
+    continueOnError: true
+    interactive: false

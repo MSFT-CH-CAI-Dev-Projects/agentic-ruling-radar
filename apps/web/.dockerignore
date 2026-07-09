@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+.env
+.env.*
+.git/
+.gitignore
+.DS_Store
+*.log
+npm-debug.log*
+yarn-error.log
+.turbo/
+.cache/
+coverage/

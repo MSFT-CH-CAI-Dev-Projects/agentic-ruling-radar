@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location":        { "value": "${AZURE_LOCATION=switzerlandnorth}" },
+    "foundryLocation": { "value": "${AZURE_FOUNDRY_LOCATION=switzerlandnorth}" },
+    "allowNonSwissRegion": { "value": false },
+    "deployWebApp": { "value": "${DEPLOY_WEB_APP=false}" },
+    "graphAppClientId":     { "value": "${GRAPH_APP_CLIENT_ID=}" },
+    "graphAppClientSecret": { "value": "${GRAPH_APP_CLIENT_SECRET=}" },
+    "sharepointSiteUrl":    { "value": "${SHAREPOINT_SITE_URL=}" },
+    "sharepointDriveId":    { "value": "${SHAREPOINT_DRIVE_ID=}" }
+  }
+}
