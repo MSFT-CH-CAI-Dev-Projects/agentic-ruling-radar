@@ -4,6 +4,8 @@ param location string
 param namePrefix string
 @description('Managed identity principal id granted AcrPull.')
 param pullPrincipalId string
+@description('Foundry project principal id granted AcrPull for hosted-agent image pulls.')
+param projectPullPrincipalId string = ''
 param tags object = {}
 
 var acrName = take(toLower(replace('${namePrefix}acr', '-', '')), 50)
@@ -27,6 +29,16 @@ resource acrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: acr
   properties: {
     principalId: pullPrincipalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+  }
+}
+
+resource projectAcrRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(projectPullPrincipalId)) {
+  name: guid(acr.id, projectPullPrincipalId, acrPullRoleId)
+  scope: acr
+  properties: {
+    principalId: projectPullPrincipalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
   }
