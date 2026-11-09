@@ -151,7 +151,15 @@ export async function fetchRuling(
     "Accept-Language": "de-CH,de;q=0.9,fr;q=0.8,en;q=0.5",
   };
   try {
-    const res = await fetch(url, {
+    const requestUrl = new URL(url);
+    if (
+      requestUrl.hostname === "www.bger.ch" &&
+      requestUrl.pathname.startsWith("/ext/eurospider/live/")
+    ) {
+      requestUrl.protocol = "https:";
+      requestUrl.hostname = "search.bger.ch";
+    }
+    const res = await fetch(requestUrl, {
       headers,
       redirect: "follow",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

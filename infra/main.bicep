@@ -58,6 +58,9 @@ param tags object = {
 @description('Whether to deploy the Next.js Container App. Default false: run the UI locally during Phase 1a/1b. Flip to true once the SharePoint flow is wired (Phase 4).')
 param deployWebApp bool = false
 
+@description('Connect the web to Cosmos through a VNet/private endpoint; keep Cosmos public access and local keys disabled.')
+param cosmosPrivateEndpoint bool = false
+
 @description('Web image used during provisioning. Defaults to the initial placeholder.')
 param webContainerImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
 
@@ -136,6 +139,7 @@ module keyVault 'modules/key_vault.bicep' = {
     location: location
     namePrefix: namePrefix
     secretsUserPrincipalId: managedIdentity.outputs.principalId
+    privateAccess: cosmosPrivateEndpoint
     graphAppClientSecret: graphAppClientSecret
     tags: tags
   }
@@ -148,6 +152,7 @@ module cosmos 'modules/cosmos.bicep' = {
     location: location
     namePrefix: namePrefix
     dataContributorPrincipalId: managedIdentity.outputs.principalId
+    privateAccess: cosmosPrivateEndpoint
     tags: tags
   }
 }
@@ -159,6 +164,7 @@ module storage 'modules/storage.bicep' = {
     location: location
     namePrefix: namePrefix
     dataContributorPrincipalId: managedIdentity.outputs.principalId
+    privateAccess: cosmosPrivateEndpoint
     tags: tags
   }
 }
@@ -185,6 +191,17 @@ module foundry 'modules/ai_foundry.bicep' = {
   }
 }
 
+module privateNetwork 'modules/private_network.bicep' = if (deployWebApp && cosmosPrivateEndpoint) {
+  name: 'private-network'
+  scope: rg
+  params: {
+    location: location
+    namePrefix: namePrefix
+    cosmosAccountId: cosmos.outputs.id
+    tags: tags
+  }
+}
+
 module containerAppsEnv 'modules/container_apps_env.bicep' = if (deployWebApp) {
   name: 'cae'
   scope: rg
@@ -193,6 +210,7 @@ module containerAppsEnv 'modules/container_apps_env.bicep' = if (deployWebApp) {
     namePrefix: namePrefix
     logAnalyticsCustomerId: logAnalytics.outputs.customerId
     logAnalyticsResourceId: logAnalytics.outputs.workspaceId
+    infrastructureSubnetId: cosmosPrivateEndpoint ? privateNetwork.outputs.appSubnetId : ''
     tags: tags
   }
 }

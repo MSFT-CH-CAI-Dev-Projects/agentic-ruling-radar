@@ -120,12 +120,15 @@ Install these once:
 | [pnpm](https://pnpm.io/installation) | 9.x | Web package manager |
 | [Python](https://www.python.org/downloads/) | 3.12 | Agent development |
 | [uv](https://docs.astral.sh/uv/getting-started/installation/) | latest | Agent dependency management |
+| Bash + [jq](https://jqlang.github.io/jq/download/) | available in PATH | Complete deployment script |
 
 You also need:
 
-- An **Azure subscription** where you can create resources (Contributor).
-- Access to **Microsoft Foundry** with quota for `gpt-4.1-mini` in your
-  chosen region.
+- An **Azure subscription** where you can create resources and assign roles:
+  Owner, or Contributor plus User Access Administrator.
+- Access to **Microsoft Foundry** with GlobalStandard quota for all three
+  configured models: `gpt-4.1`, `gpt-4.1-mini`, and `text-embedding-3-large`
+  (50 capacity units each by default).
 - *(Optional)* A **Microsoft 365 / SharePoint** site + a Graph app
   registration, only if you want the "publish draft to SharePoint"
   feature.
@@ -141,10 +144,59 @@ Azure environment. Expect ~30–60 minutes end-to-end.
 
 ```bash
 git clone <this-repo-url>
-cd ruling-radar
+cd agentic-ruling-radar
 az login          # sign in to Azure
 azd auth login    # sign in the Azure Developer CLI
 ```
+
+For an unmerged fix, add `--branch <fix-branch>` to `git clone`; otherwise Git
+checks out the repository's default branch, not necessarily the corrected code.
+
+### Complete cloud deployment (recommended)
+
+Use a fresh environment name and the same tenant/subscription for both
+Azure CLI and azd authentication. This deploys infrastructure, builds and
+registers both agents by digest, assigns runtime permissions, waits for
+readiness/RBAC propagation, then deploys the web:
+
+```bash
+azd env new <environment-name> --subscription <subscription-id> \
+  --location switzerlandnorth --no-prompt
+azd env set AZURE_FOUNDRY_LOCATION switzerlandnorth
+azd env set DEPLOY_WEB_APP true
+azd env set COSMOS_PRIVATE_ENDPOINT true
+# Recommended for a demo: limit web access to the tester's public IP.
+azd env set WEB_ALLOWED_IP "<your-public-ip>/32"
+
+bash scripts/deploy.sh <environment-name>
+```
+
+The script fails on provisioning, role-assignment, or agent-readiness errors;
+it does not treat successful registration as a running deployment. Each run
+creates new immutable agent versions. Re-running is not a network migration
+procedure for an existing locked-down customer environment.
+
+After deployment, open the reported `https://` web URL, summarize a public
+court ruling in `/case-1`, and confirm it appears in history. A successful page
+load or agent status alone does not verify the full application.
+SharePoint remains optional and is not configured by this procedure.
+
+Provisioning is staged: backing services first, then the real web image,
+then the web Container App. This avoids starting a port-3000 app with the
+initial port-80 placeholder. The web identity receives `Foundry Agent
+Consumer` on the project; account-level OpenAI roles do not grant hosted
+endpoint interaction.
+
+`COSMOS_PRIVATE_ENDPOINT=true` keeps Cosmos private with Entra-only auth and
+creates a VNet, SQL private endpoint and linked private DNS zone. The web
+environment joins that VNet. Backing Storage and Key Vault remain private
+instead of being reopened during reprovisioning; optional workflows needing
+them require their own private connectivity. Private endpoint and managed
+network infrastructure have additional costs. Azure may create a separate
+managed infrastructure resource group for Container Apps.
+
+The steps below are the manual/local-development alternative; do not repeat
+agent registration after running the complete deployment script.
 
 ### 2. Provision the Azure infrastructure + web app
 
@@ -453,7 +505,9 @@ any name alignment rather than deleting customer permissions blindly.
 | `ImageError: Container registry authentication failed` | Verify the actual project's principal and its effective `AcrPull` on the registry referenced by the image. After propagation, register a new version and check that it becomes `active`; a successful registration response alone is not readiness. |
 | `RequestConflict: Another operation is in progress` on the Foundry account | Project creation and model deployment must not modify the account concurrently. The Bicep now creates the project before deploying models and keeps model deployments sequential. |
 | Agent HTTP 500 with underlying model HTTP 401 / `PermissionDenied` | Check the separate runtime account/project grants above and the project's account grant. Image-pull success does not prove model access. |
+| Web returns HTTP 403 `RBAC: access denied` | Check the ingress IP allowlist, not the Foundry roles. VPNs/proxies can use different or rotating source addresses for Azure-bound traffic than a general public-IP lookup reports. Use the actual authorized egress address/range; do not remove restrictions blindly. |
 | Web cannot connect to Cosmos | Set `AZURE_COSMOS_ENDPOINT`; the Bicep now supplies it to the optional web Container App. Network access and Cosmos data permissions still need to be valid. |
+| Court fetching fails TLS verification on `www.bger.ch` | Research URLs and listing requests use the canonical `search.bger.ch` host. TLS verification remains enabled; do not use insecure certificate bypasses. |
 
 The image-pull failure was reproduced without the project grant and resolved
 by adding it, using unchanged images and no additional ACR connection. If that
@@ -462,6 +516,10 @@ not explain the remaining failure: retain the failed version's details and
 investigate the actual identity, registry configuration, and network path.
 The runtime grants above describe a working combination, not an experiment
 proving that every grant is independently required.
+
+Listing dates represent publication days, not necessarily decision dates.
+The crawler extracts the actual decision date from the ruling row; failed
+listing requests are reported as errors, not as an empty successful batch.
 
 ---
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from agent_framework import tool
@@ -67,6 +68,16 @@ def _decode_latin1(content: bytes) -> str:
         return content.decode("iso-8859-1")
     except UnicodeDecodeError:  # pragma: no cover - extremely unlikely
         return content.decode("utf-8", errors="replace")
+
+
+def _canonical_ruling_url(url: str) -> str:
+    parsed = urlsplit(url)
+    if parsed.hostname == "www.bger.ch" and parsed.path.startswith(
+        "/ext/eurospider/live/"
+    ):
+        parsed = parsed._replace(scheme="https", netloc="search.bger.ch")
+        return urlunsplit(parsed)
+    return url
 
 
 def _docket_from_url(url: str) -> str | None:
@@ -180,7 +191,7 @@ async def bger_fetch_ruling(url: str) -> dict:
         async with httpx.AsyncClient(
             headers=headers, timeout=_TIMEOUT, follow_redirects=True
         ) as client:
-            r = await client.get(url)
+            r = await client.get(_canonical_ruling_url(url))
             r.raise_for_status()
             html = _decode_latin1(r.content)
     except httpx.HTTPError as exc:

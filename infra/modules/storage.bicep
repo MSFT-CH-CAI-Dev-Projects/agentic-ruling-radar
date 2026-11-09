@@ -4,6 +4,8 @@ param location string
 param namePrefix string
 @description('Principal id granted Storage Blob Data Contributor.')
 param dataContributorPrincipalId string
+@description('Keep backing storage private and disable shared keys in private web deployments.')
+param privateAccess bool = false
 param tags object = {}
 
 var storageName = take(toLower(replace('${namePrefix}stor', '-', '')), 24)
@@ -18,8 +20,8 @@ resource sa 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     accessTier: 'Hot'
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: true
-    publicNetworkAccess: 'Enabled'
+    allowSharedKeyAccess: !privateAccess
+    publicNetworkAccess: privateAccess ? 'Disabled' : 'Enabled'
   }
 }
 

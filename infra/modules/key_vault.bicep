@@ -6,6 +6,8 @@ param namePrefix string
 param tenantId string = subscription().tenantId
 @description('Principal id (managed identity) that should be granted Key Vault Secrets User.')
 param secretsUserPrincipalId string
+@description('Keep the backing vault private in private web deployments.')
+param privateAccess bool = false
 @description('Optional Graph application client secret to seed at provision time. Leave empty to skip; postprovision.sh writes it if GRAPH_APP_CLIENT_SECRET is set in the azd env.')
 @secure()
 param graphAppClientSecret string = ''
@@ -26,7 +28,7 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
     enablePurgeProtection: null
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: privateAccess ? 'Disabled' : 'Enabled'
   }
 }
 

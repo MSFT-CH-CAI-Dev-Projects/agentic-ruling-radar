@@ -64,6 +64,8 @@ var csUserRoleId = 'a97b65f3-24c7-4388-baec-2e87135dc908'
 var aiDevRoleId = '64702f94-c441-49e6-a78b-ef80e0188fee'
 // Built-in role: Foundry User
 var foundryUserRoleId = '53ca6127-db72-4b80-b1b0-d745d6d5456d'
+// Built-in role: Foundry Agent Consumer (web calls hosted-agent endpoints).
+var agentConsumerRoleId = 'eed3b665-ab3a-47b6-8f48-c9382fb1dad6'
 
 resource roleCsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(foundry.id, userPrincipalId, csUserRoleId)
@@ -92,6 +94,16 @@ resource roleProjectFoundryUser 'Microsoft.Authorization/roleAssignments@2022-04
     principalId: project.identity.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', foundryUserRoleId)
+  }
+}
+
+resource roleUserAgentConsumer 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(project.id, userPrincipalId, agentConsumerRoleId)
+  scope: project
+  properties: {
+    principalId: userPrincipalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', agentConsumerRoleId)
   }
 }
 

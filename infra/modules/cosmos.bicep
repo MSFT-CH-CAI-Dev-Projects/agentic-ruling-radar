@@ -4,6 +4,8 @@ param location string
 param namePrefix string
 @description('Principal id granted Cosmos DB Built-in Data Contributor.')
 param dataContributorPrincipalId string
+@description('Disable public networking and local keys when using the web private endpoint.')
+param privateAccess bool = false
 param tags object = {}
 
 var accountName = toLower(replace('${namePrefix}-cosmos', '_', '-'))
@@ -19,8 +21,8 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
     locations: [ { locationName: location, failoverPriority: 0, isZoneRedundant: false } ]
     capabilities: [ { name: 'EnableServerless' } ]
     consistencyPolicy: { defaultConsistencyLevel: 'Session' }
-    disableLocalAuth: false
-    publicNetworkAccess: 'Enabled'
+    disableLocalAuth: privateAccess
+    publicNetworkAccess: privateAccess ? 'Disabled' : 'Enabled'
   }
 }
 
