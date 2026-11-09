@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 USER_AGENT = "RulingRadar/1.0 (+https://example.com; ruling-radar)"
 _TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
 
-_BGER_HOST = "https://www.bger.ch"
+_BGER_HOST = "https://search.bger.ch"
 _INDEX_URL = (
     f"{_BGER_HOST}/ext/eurospider/live/de/php/aza/http/"
     "index_aza.php?lang=de&mode=index&search=false"
@@ -62,7 +62,9 @@ _DROP_RE = re.compile(
     re.IGNORECASE,
 )
 
-_DAY_LINK_RE = re.compile(r"index_aza\.php\?date=(\d{8})&(?:amp;)?lang=de&(?:amp;)?mode=news")
+_DAY_LINK_RE = re.compile(
+    r"index_aza\.php\?date=(\d{8})&(?:amp;)?lang=de&(?:amp;)?mode=news"
+)
 _DOCKET_RE = re.compile(r"\b(\d[A-Z]_\d+/\d{4})\b")
 
 
@@ -107,6 +109,15 @@ def _row_to_entry(row: Tag, ymd: str) -> dict[str, Any] | None:
     if not m:
         return None
     docket = m.group(1)
+    decision_date = None
+    for td in row.find_all("td"):
+        text = td.get_text(strip=True)
+        if re.fullmatch(r"\d{2}\.\d{2}\.\d{4}", text):
+            try:
+                decision_date = datetime.strptime(text, "%d.%m.%Y").date().isoformat()
+            except ValueError:
+                logger.warning("invalid decision date docket=%s date=%s", docket, text)
+            break
 
     # Sachgebiet lives either in <CITE> (with optional `*` suffix
     # marking Leitentscheid) or in a plain <TD>. Walk all TDs and
@@ -130,7 +141,7 @@ def _row_to_entry(row: Tag, ymd: str) -> dict[str, Any] | None:
 
     return {
         "docket": docket,
-        "decision_date": _format_date(ymd),
+        "decision_date": decision_date,
         "sachgebiet": sachgebiet,
         "leitentscheid": leitentscheid,
         "url": url,
@@ -162,9 +173,7 @@ def _stage1_filter(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return kept
 
 
-async def _list_for_dates(
-    dates: list[str], include_all: bool
-) -> dict[str, Any]:
+async def _list_for_dates(dates: list[str], include_all: bool) -> dict[str, Any]:
     headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "de-CH,de;q=0.9",
@@ -178,7 +187,9 @@ async def _list_for_dates(
                 html = await _fetch(_DAY_URL.format(ymd=ymd), client)
             except httpx.HTTPError as exc:
                 logger.warning("day listing failed ymd=%s err=%s", ymd, exc)
-                continue
+                return {
+                    "error": f"HTTP error fetching listing for {_format_date(ymd)}: {exc}"
+                }
             all_rows.extend(_parse_day_listing(html, ymd))
 
     kept = all_rows if include_all else _stage1_filter(all_rows)

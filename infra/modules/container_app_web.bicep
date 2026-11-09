@@ -10,6 +10,8 @@ param userAssignedIdentityId string
 param acrLoginServer string
 @description('Full container image ref.')
 param image string
+@description('Optional CIDR allowed to access the ingress.')
+param allowedIp string = ''
 @description('Plain-text environment variables.')
 param envVars array = []
 @description('Optional tag for azd service-name binding.')
@@ -34,6 +36,13 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 3000
         transport: 'auto'
         allowInsecure: false
+        ipSecurityRestrictions: empty(allowedIp) ? [] : [
+          {
+            name: 'allowed-client'
+            action: 'Allow'
+            ipAddressRange: allowedIp
+          }
+        ]
         traffic: [ { weight: 100, latestRevision: true } ]
       }
       registries: [

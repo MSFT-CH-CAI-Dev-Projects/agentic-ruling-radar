@@ -120,12 +120,15 @@ Install these once:
 | [pnpm](https://pnpm.io/installation) | 9.x | Web package manager |
 | [Python](https://www.python.org/downloads/) | 3.12 | Agent development |
 | [uv](https://docs.astral.sh/uv/getting-started/installation/) | latest | Agent dependency management |
+| Bash + [jq](https://jqlang.github.io/jq/download/) | available in PATH | Complete deployment script |
 
 You also need:
 
-- An **Azure subscription** where you can create resources (Contributor).
-- Access to **Microsoft Foundry** with quota for `gpt-4.1-mini` in your
-  chosen region.
+- An **Azure subscription** where you can create resources and assign roles:
+  Owner, or Contributor plus User Access Administrator.
+- Access to **Microsoft Foundry** with GlobalStandard quota for all three
+  configured models: `gpt-4.1`, `gpt-4.1-mini`, and `text-embedding-3-large`
+  (50 capacity units each by default).
 - *(Optional)* A **Microsoft 365 / SharePoint** site + a Graph app
   registration, only if you want the "publish draft to SharePoint"
   feature.
@@ -141,10 +144,59 @@ Azure environment. Expect ~30–60 minutes end-to-end.
 
 ```bash
 git clone <this-repo-url>
-cd ruling-radar
+cd agentic-ruling-radar
 az login          # sign in to Azure
 azd auth login    # sign in the Azure Developer CLI
 ```
+
+For an unmerged fix, add `--branch <fix-branch>` to `git clone`; otherwise Git
+checks out the repository's default branch, not necessarily the corrected code.
+
+### Complete cloud deployment (recommended)
+
+Use a fresh environment name and the same tenant/subscription for both
+Azure CLI and azd authentication. This deploys infrastructure, builds and
+registers both agents by digest, assigns runtime permissions, waits for
+readiness/RBAC propagation, then deploys the web:
+
+```bash
+azd env new <environment-name> --subscription <subscription-id> \
+  --location switzerlandnorth --no-prompt
+azd env set AZURE_FOUNDRY_LOCATION switzerlandnorth
+azd env set DEPLOY_WEB_APP true
+azd env set COSMOS_PRIVATE_ENDPOINT true
+# Recommended for a demo: limit web access to the tester's public IP.
+azd env set WEB_ALLOWED_IP "<your-public-ip>/32"
+
+bash scripts/deploy.sh <environment-name>
+```
+
+The script fails on provisioning, role-assignment, or agent-readiness errors;
+it does not treat successful registration as a running deployment. Each run
+creates new immutable agent versions. Re-running is not a network migration
+procedure for an existing locked-down customer environment.
+
+After deployment, open the reported `https://` web URL, summarize a public
+court ruling in `/case-1`, and confirm it appears in history. A successful page
+load or agent status alone does not verify the full application.
+SharePoint remains optional and is not configured by this procedure.
+
+Provisioning is staged: backing services first, then the real web image,
+then the web Container App. This avoids starting a port-3000 app with the
+initial port-80 placeholder. The web identity receives `Foundry Agent
+Consumer` on the project; account-level OpenAI roles do not grant hosted
+endpoint interaction.
+
+`COSMOS_PRIVATE_ENDPOINT=true` keeps Cosmos private with Entra-only auth and
+creates a VNet, SQL private endpoint and linked private DNS zone. The web
+environment joins that VNet. Backing Storage and Key Vault remain private
+instead of being reopened during reprovisioning; optional workflows needing
+them require their own private connectivity. Private endpoint and managed
+network infrastructure have additional costs. Azure may create a separate
+managed infrastructure resource group for Container Apps.
+
+The steps below are the manual/local-development alternative; do not repeat
+agent registration after running the complete deployment script.
 
 ### 2. Provision the Azure infrastructure + web app
 
@@ -223,9 +275,11 @@ cd ../..
 ```
 
 Each hosted agent runs under its own Foundry-managed identity. On first
-deploy, grant that identity access to your Foundry account and ACR (see
+deploy, grant that identity access to your Foundry account (see
 [Granting agent identities access](#granting-agent-identities-access)
-below).
+below). The platform pulls container images using the Foundry project's
+managed identity, not the agent's runtime identity. The Bicep grants
+`AcrPull` to the project identity on the registry.
 
 The BFF calls version-agnostic endpoints — Foundry routes to the latest
 active version automatically:
@@ -397,26 +451,75 @@ bash scripts/diag.sh appinsights # exceptions + warning traces, last 1h
 
 ### Granting agent identities access
 
-Each Foundry hosted agent runs under its own system-assigned identity.
-On first deploy, grant it access to your Foundry (Azure OpenAI) account
-and ACR. Get the agent's principal id from the Foundry portal or an App
+Each Foundry hosted agent runs under its own Foundry-managed identity.
+On first deploy, grant it access to your Foundry (Azure OpenAI) account.
+Get the agent's principal id from the Foundry portal or an App
 Insights auth exception, then:
 
 ```bash
 AOAI=$(az cognitiveservices account show -g <your-resource-group> -n <your-foundry> --query id -o tsv)
-ACR=$(az acr show -n <your-registry> --query id -o tsv)
-PRINCIPAL=<agent system principal object id>
+PROJECT="$AOAI/projects/<your-project-name>"
+PRINCIPAL=<agent runtime principal object id>
 
 az role assignment create --assignee-object-id $PRINCIPAL --assignee-principal-type ServicePrincipal \
   --role "Cognitive Services OpenAI User" --scope $AOAI
 az role assignment create --assignee-object-id $PRINCIPAL --assignee-principal-type ServicePrincipal \
   --role "Cognitive Services User" --scope $AOAI
 az role assignment create --assignee-object-id $PRINCIPAL --assignee-principal-type ServicePrincipal \
-  --role "AcrPull" --scope $ACR
+  --role "Foundry User" --scope $PROJECT
 ```
 
 Both `Cognitive Services OpenAI User` **and** `Cognitive Services User`
-are required for the model calls to resolve.
+are granted for direct account-level model calls. If calls still fail with
+`Principal does not have access to API/Operation`, verify the runtime
+identity's `Foundry User` grant on the project as well. The project's own
+identity also needs `Foundry User` on the account; the Bicep provisions it.
+
+For an existing environment provisioned before the project `AcrPull` grant
+was added, grant that role to the Foundry project's `identity.principalId`
+on the target registry. Allow time for RBAC propagation, then create a new
+agent version using the same image digest. Granting the runtime identity
+access does not replace the project's image-pull permission.
+
+```bash
+# AOAI and PROJECT are the account/project scopes defined above.
+PROJECT_PRINCIPAL=$(az resource show --ids "$PROJECT" --api-version 2025-06-01 \
+  --query identity.principalId -o tsv)
+ACR=$(az acr show -g <your-resource-group> -n <your-registry> --query id -o tsv)
+
+az role assignment create --assignee-object-id "$PROJECT_PRINCIPAL" \
+  --assignee-principal-type ServicePrincipal --role "AcrPull" --scope "$ACR"
+az role assignment create --assignee-object-id "$PROJECT_PRINCIPAL" \
+  --assignee-principal-type ServicePrincipal --role "Foundry User" --scope "$AOAI"
+```
+
+Existing manually created role assignments can have different names from
+the Bicep assignments. Before reprovisioning an existing environment, check
+for these grants; otherwise ARM can report `RoleAssignmentExists`. Coordinate
+any name alignment rather than deleting customer permissions blindly.
+
+### Deployment troubleshooting
+
+| Failure | What to check |
+| --- | --- |
+| `ImageError: Container registry authentication failed` | Verify the actual project's principal and its effective `AcrPull` on the registry referenced by the image. After propagation, register a new version and check that it becomes `active`; a successful registration response alone is not readiness. |
+| `RequestConflict: Another operation is in progress` on the Foundry account | Project creation and model deployment must not modify the account concurrently. The Bicep now creates the project before deploying models and keeps model deployments sequential. |
+| Agent HTTP 500 with underlying model HTTP 401 / `PermissionDenied` | Check the separate runtime account/project grants above and the project's account grant. Image-pull success does not prove model access. |
+| Web returns HTTP 403 `RBAC: access denied` | Check the ingress IP allowlist, not the Foundry roles. VPNs/proxies can use different or rotating source addresses for Azure-bound traffic than a general public-IP lookup reports. Use the actual authorized egress address/range; do not remove restrictions blindly. |
+| Web cannot connect to Cosmos | Set `AZURE_COSMOS_ENDPOINT`; the Bicep now supplies it to the optional web Container App. Network access and Cosmos data permissions still need to be valid. |
+| Court fetching fails TLS verification on `www.bger.ch` | Research URLs and listing requests use the canonical `search.bger.ch` host. TLS verification remains enabled; do not use insecure certificate bypasses. |
+
+The image-pull failure was reproduced without the project grant and resolved
+by adding it, using unchanged images and no additional ACR connection. If that
+grant is already effective and a fresh version still fails, this result does
+not explain the remaining failure: retain the failed version's details and
+investigate the actual identity, registry configuration, and network path.
+The runtime grants above describe a working combination, not an experiment
+proving that every grant is independently required.
+
+Listing dates represent publication days, not necessarily decision dates.
+The crawler extracts the actual decision date from the ruling row; failed
+listing requests are reported as errors, not as an empty successful batch.
 
 ---
 

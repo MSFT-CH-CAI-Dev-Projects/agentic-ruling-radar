@@ -6,6 +6,8 @@ param namePrefix string
 param logAnalyticsCustomerId string
 @description('Log Analytics resource id (used to look up the shared key).')
 param logAnalyticsResourceId string
+@description('Optional subnet delegated to Microsoft.App/environments.')
+param infrastructureSubnetId string = ''
 param tags object = {}
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
@@ -17,6 +19,10 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   location: location
   tags: tags
   properties: {
+    vnetConfiguration: empty(infrastructureSubnetId) ? null : {
+      infrastructureSubnetId: infrastructureSubnetId
+      internal: false
+    }
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
